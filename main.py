@@ -117,7 +117,7 @@ def main():
             fn_output = "data/phi/fn.txt",
             fp_output = "data/phi/fp.txt",
             summary_output="./data/phi/summary.json",
-            phi_matcher=re.compile("\*+"),
+            phi_matcher=re.compile(r"\*+"),
             pre_process=r":|\,|\-|\/|_|~", #characters we're going to strip from our notes to analyze against anno
             only_digits=False,
             pre_process2= r"[^a-zA-Z0-9]",
