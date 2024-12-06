@@ -169,12 +169,12 @@ class Philter:
         if filename not in self.cleaned:
             self.cleaned = {}
             # Use pre-process to split sentence by spaces AND symbols, while preserving spaces in the split list
-            lst = re.split("(\s+)", text)
+            lst = re.split(r"(\s+)", text)
             cleaned = []
             for item in lst:
                 if len(item) > 0:
                     if item.isspace() == False:
-                        split_item = re.split("(\s+)", re.sub(pre_process, " ", item))
+                        split_item = re.split(r"(\s+)", re.sub(pre_process, " ", item))
                         for elem in split_item:
                             if len(elem) > 0:
                                 cleaned.append(elem)
@@ -373,12 +373,12 @@ class Philter:
         #### MATCHALL/CATCHALL ####
         elif regex == re.compile('.'):
             # Split note the same way we would split for set or POS matching
-            matchall_list = re.split("(\s+)", text)
+            matchall_list = re.split(r"(\s+)", text)
             matchall_list_cleaned = []
             for item in matchall_list:
                 if len(item) > 0:
                     if item.isspace() == False:
-                        split_item = re.split("(\s+)", re.sub(pre_process, " ", item))
+                        split_item = re.split(r"(\s+)", re.sub(pre_process, " ", item))
                         for elem in split_item:
                             if len(elem) > 0:
                                 matchall_list_cleaned.append(elem)
@@ -472,7 +472,7 @@ class Philter:
             # Get index of m.group()first alphanumeric character in match
             tokenized_matches = []
             match_text = m.group()
-            split_match = re.split("(\s+)", re.sub(pre_process, " ", match_text))
+            split_match = re.split(r"(\s+)", re.sub(pre_process, " ", match_text))
 
             # Get all spans of tokenized match (because remove() function requires tokenized start coordinates)
             coord_tracker = 0
@@ -642,7 +642,7 @@ class Philter:
         if len(pos_set) > 0:
             check_pos = True
 
-        lst = re.split("(\s+)", text)
+        lst = re.split(r"(\s+)", text)
         cleaned = []
         for item in lst:
             if len(item) > 0:
@@ -1016,7 +1016,7 @@ class Philter:
         anno_suffix="_phi_reduced.ano",
         in_path="data/i2b2_results/",
         summary_output="data/phi/summary.json",
-        phi_matcher=re.compile("\*+"),
+        phi_matcher=re.compile(r"\*+"),
         only_digits=False,
         fn_output = "data/phi/fn.txt",
         fp_output = "data/phi/fp.txt",
@@ -1097,7 +1097,7 @@ class Philter:
                 philtered = open(philtered_filename,"r").read()
                 
                           
-                philtered_words = re.split("(\s+)", philtered)
+                philtered_words = re.split(r"(\s+)", philtered)
                 # if f == '110-01.txt':
                 #     print(philtered_words)
                 #     print(len("".join(philtered_words)))
@@ -1105,7 +1105,7 @@ class Philter:
                 for item in philtered_words:
                     if len(item) > 0:
                         if item.isspace() == False:
-                            split_item = re.split("(\s+)", re.sub(punctuation_matcher, " ", item))
+                            split_item = re.split(r"(\s+)", re.sub(punctuation_matcher, " ", item))
                             for elem in split_item:
                                 if len(elem) > 0:
                                     philtered_words_cleaned.append(elem)
@@ -1117,7 +1117,7 @@ class Philter:
                 encoding2 = self.detect_encoding(anno_filename)
                 anno = open(anno_filename,"r").read()              
                 
-                anno_words = re.split("(\s+)", anno)
+                anno_words = re.split(r"(\s+)", anno)
                 # if f == '110-01.txt':
                 #     print(anno_words)
                 #     print(len("".join(anno_words)))
@@ -1125,7 +1125,7 @@ class Philter:
                 for item in anno_words:
                     if len(item) > 0:
                         if item.isspace() == False:
-                            split_item = re.split("(\s+)", re.sub(punctuation_matcher, " ", item))
+                            split_item = re.split(r"(\s+)", re.sub(punctuation_matcher, " ", item))
                             for elem in split_item:
                                 if len(elem) > 0:
                                     anno_words_cleaned.append(elem)
@@ -1336,13 +1336,13 @@ class Philter:
                 #     anno_name = note_name.split('.')[0] + "_nounicode.txt.xml"
                 #     text = phi[anno_name]['text']                       
 
-            lst = re.split("(\s+)", text)
+            lst = re.split(r"(\s+)", text)
             cleaned = []
             cleaned_coords = []
             for item in lst:
                 if len(item) > 0:
                     if item.isspace() == False:
-                        split_item = re.split("(\s+)", re.sub(r"[^a-zA-Z0-9]", " ", item))
+                        split_item = re.split(r"(\s+)", re.sub(r"[^a-zA-Z0-9]", " ", item))
                         for elem in split_item:
                             if len(elem) > 0:
                                 cleaned.append(elem)
@@ -2273,12 +2273,12 @@ class Philter:
                 encoding1 = self.detect_encoding(orig_filename)
                 orig = open(orig_filename,"r", encoding=encoding1['encoding']).read()
 
-                orig_words = re.split("\s+", orig)
+                orig_words = re.split(r"\s+", orig)
 
                 anno_filename = os.path.join( anno_folder , f.split(".")[0]+anno_suffix )
                 encoding2 = self.detect_encoding(anno_filename)
                 anno = open(anno_filename,"r", encoding=encoding2['encoding']).read()
-                anno_words = re.split("\s+", anno)
+                anno_words = re.split(r"\s+", anno)
 
                 anno_dict = {}
                 orig_dict = {}
@@ -2313,7 +2313,7 @@ class Philter:
                             phi[f] = []
 
                         c = "string"
-                        if re.search("\d+", w):
+                        if re.search(r"\d+", w):
                             c = "number"
 
                         phi[f].append({"phi":w,"context":window,"class":c})
@@ -2360,7 +2360,7 @@ class Philter:
         non_phi_number = {}
         non_phi_string = {}
         for w in word_counts:
-            if re.search("\d+", w):
+            if re.search(r"\d+", w):
                 if w not in non_phi_number:
                     non_phi_number[w] = 0
                 non_phi_number[w] += 1
@@ -2399,9 +2399,9 @@ class Philter:
             wordlst = []
             phi_word = phi["phi"]
             for c in phi_word:
-                if re.match("\d+", c):
+                if re.match(r"\d+", c):
                     wordlst.append(digit_char)
-                elif re.match("[a-zA-Z]+", c):
+                elif re.match(r"[a-zA-Z]+", c):
                     wordlst.append(string_char)
                 else:
                     wordlst.append(c)
