@@ -6,6 +6,7 @@ import nltk
 import itertools
 import chardet
 import pickle
+from tqdm import tqdm
 from chardet.universaldetector import UniversalDetector
 from nltk.stem.wordnet import WordNetLemmatizer
 from coordinate_map import CoordinateMap
@@ -275,7 +276,7 @@ class Philter:
             self.patterns[i]["coordinate_map"] = CoordinateMap()
 
         for root, dirs, files in os.walk(in_path):
-            for f in files:
+            for f in tqdm(files):
 
                 filename = os.path.join(root, f)
 
@@ -286,7 +287,7 @@ class Philter:
                 #self.patterns[i]["coordinate_map"].add_file(filename)
 
                 encoding = self.detect_encoding(filename)
-                if __debug__: print("reading text from " + filename)
+                #if __debug__: print("reading text from " + filename)
                 txt = open(filename,"r", encoding=encoding['encoding'], errors='surrogateescape').read()
 
                 # Get full self.include/exclude map before transform
