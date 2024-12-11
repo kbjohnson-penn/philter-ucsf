@@ -1,4 +1,5 @@
 import argparse
+import logging
 import pandas as pd
 import json
 from philter import Philter
@@ -6,6 +7,13 @@ import glob
 import sys
 import os
 import tempfile
+
+logging.basicConfig(
+    filename='regex_filters.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filemode='w'
+)
 
 def process_tsv(input, output):
     input_path = os.path.join(input)
@@ -19,7 +27,7 @@ def process_tsv(input, output):
         os.makedirs(output_path, exist_ok=True)
 
         lines = [line for line in df["text"]]
-        file_names = [f_name + f"_line{line_num + 1}.txt" for line_num in range(len(lines))]
+        file_names = [f"{line_num + 1}_line_" + f"{f_name}.txt" for line_num in range(len(lines))]
         content_dict = {k: v for k, v in zip(file_names, lines)}
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -64,7 +72,7 @@ def process_json(input, output):
         segments = data["segments"]
 
         lines = [segments[i]["text"].strip() for i in range(len(segments))]
-        file_names = [f_name + f"_line{line_num + 1}.txt" for line_num in range(len(lines))]
+        file_names = [f"{line_num + 1}_line_" + f"{f_name}.txt" for line_num in range(len(lines))]
         content_dict = {k: v for k, v in zip(file_names, lines)}
 
         with tempfile.TemporaryDirectory() as temp_dir:
