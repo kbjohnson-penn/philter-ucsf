@@ -1,3 +1,91 @@
+# kbjohnson-penn README
+
+To clone this repo, run the following command:
+
+```bash
+git clone https://github.com/kbjohnson-penn/philter-ucsfin
+```
+
+Philter is a command-line based clinical text de-identification software that removes protected health information (PHI) and can be used to process **plain text files**. For our use case, we have adapted Philter to be able to process **TSV** and **JSON** transcript files in the following format:
+
+### TSV
+
+| start | end | text  |
+|-------|-----|-------|
+| 190080 | 191660 | An example sentence |
+| 191660 | 193240 | An example sentence |
+
+### JSON
+
+```json
+{
+    "segments": [
+        {
+            "start": 12.777,
+            "end": 13.077,
+            "text": "An example",
+            "words": [
+                {
+                    "word": "An",
+                    "start": 12.777,
+                    "end": 12.937,
+                    "score": 0.272,
+                    "speaker": "SPEAKER_01"
+                },
+                {
+                    "word": "example",
+                    "start": 12.957,
+                    "end": 13.077,
+                    "score": 0.13,
+                    "speaker": "SPEAKER_01"
+                }
+            ],
+            "language": "en"
+        }
+    ]
+}
+```
+
+# Running kbjohnson-penn Philter:
+
+- Store all input file(s) in the same directory and make sure they are in TSV or JSON format. Examples of properly formatted input files can be found above.
+
+- All output files will be saved in the specified output directory, which will be created if it doesn't already exist.
+
+- Our current implementation uses the default configuration file. However, you can also create a configuration file with specified filters. We are currently working on identifying the best set of filters for our use case.
+
+- Run Philter in the command line by using our custom parameters.
+
+**-i (input):** Path to the directory that contains input (TSV and/or JSON) files<br/>
+**-o (output):** Path to the directory where the output files will be written<br/>
+**-f (format):** Specifies the file format (TSV or JSON) to be processed by Philter<br/>
+
+Run Philter on the inputs file(s) by navigating to the directory containing `main_format.py` and using one of the following commands:
+
+```bash
+python3 main_format.py -i path/to/input/folder -o path/to/output/folder -f tsv
+```
+
+**or**
+
+```bash
+python3 main_format.py -i path/to/input/folder -o path/to/output/folder -f json
+```
+
+# kbjohnson-penn Regex Logging
+
+Upon running Philter with `main_format.py`, a log file `regex_filters.log` will be created. This log file details the potential PHI being filtered. It includes the location of each occurrence, the original text snippet, the matched word or phrase, the regex expression used, and the starting and stopping indices of where the PHI occurred. Here is an example of how this information is presented:
+
+```ini
+20XX-XX-XX XX:XX:XX,XXX - INFO - File: 12_line_filename.txt
+20XX-XX-XX XX:XX:XX,XXX - INFO - Line 12 | Text: Do you know this is an example?
+20XX-XX-XX XX:XX:XX,XXX - INFO - Regex match: Do you
+20XX-XX-XX XX:XX:XX,XXX - INFO - Expression: '(?i)\\bdo\\s(not|you|I)\\b'
+20XX-XX-XX XX:XX:XX,XXX - INFO - Start index: 0 | End index: 6
+```
+
+# Original Philter README
+
 If you use this software for any publication, please cite:
 Norgeot, B., Muenzen, K., Peterson, T.A. et al. Protected Health Information filter (Philter): accurately and securely de-identifying free-text clinical notes. npj Digit. Med. 3, 57 (2020). https://doi.org/10.1038/s41746-020-0258-y
 
