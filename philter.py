@@ -3,6 +3,7 @@ import warnings
 import json
 import os
 import nltk
+import logging
 import itertools
 import chardet
 import pickle
@@ -275,9 +276,16 @@ class Philter:
         for i,pat in enumerate(self.patterns):
             self.patterns[i]["coordinate_map"] = CoordinateMap()
 
-        for root, dirs, files in os.walk(in_path):
-            for f in tqdm(files):
+        #extract the numerical part of the filename
+        def extract_number(filename):
+            match = re.search(r'(\d+)_line', filename)
+            return int(match.group(1)) if match else float('inf')
 
+        for root, dirs, files in os.walk(in_path):
+            # Sort files numerically
+            sorted_files = sorted(files, key=extract_number)
+            
+            for e, f in tqdm(enumerate(sorted_files), total=len(sorted_files)):
                 filename = os.path.join(root, f)
 
                 if filename.split(".")[-1] not in allowed_filetypes:
@@ -310,7 +318,7 @@ class Philter:
 
                 for i,pat in enumerate(self.patterns):
                     if pat["type"] == "regex":
-                        self.map_regex(filename=filename, text=txt, pattern_index=i)
+                        self.map_regex(filename=filename, text=txt, line_num=e, pattern_index=i)
                     elif pat["type"] == "set":
                         self.map_set(filename=filename, text=txt, pattern_index=i)
                     elif pat["type"] == "regex_context":
@@ -343,7 +351,7 @@ class Philter:
 
         return self.full_exclude_map
                 
-    def map_regex(self, filename="", text="", pattern_index=-1, pre_process= r"[^a-zA-Z0-9]"):
+    def map_regex(self, filename="", text="", pattern_index=-1, line_num=-1, pre_process= r"[^a-zA-Z0-9]"):
         """ Creates a coordinate map from the pattern on this data
             generating a coordinate map of hits given (dry run doesn't transform)
         """
@@ -363,9 +371,11 @@ class Philter:
             matches = regex.finditer(text)
             
             for m in matches:
-                # print(m.group())
-                # print(self.patterns[pattern_index]['title'])
-
+                logging.info("File: %s", filename.split("\\")[-1])
+                logging.info("Line %s | Text: %s", line_num + 1, text)
+                logging.info("Regex match: %s", m.group())
+                logging.info("Expression: %s", str(regex).replace("re.compile(", "").replace(", re.IGNORECASE)", ""))
+                logging.info("Start index: %s | End index: %s %s",  m.start(), m.start() + len(m.group()), "\n")
 
                 coord_map.add_extend(filename, m.start(), m.start()+len(m.group()))
         
@@ -456,6 +466,16 @@ class Philter:
             
             match_start = m.span()[0]
             match_end = m.span()[1]
+
+            # uncomment if you want to see regex results from: filters/regex_context
+            # designed to find capitalized words (likely names) and specific initials or abbreviations, IE Alzheimer's or Parkinson's or Huntington's
+            # you may want to exclude certain characters like " I " or "A " as they show up a lot
+            #if m.group() not in [characters you don't want to see]:
+                #logging.info("File: %s", filename.split("\\")[-1])
+                #logging.info("Text: %s", text)
+                #logging.info("Regex match: %s", m.group())
+                #logging.info("Expression: %s", str(regex).replace("re.compile(", "").replace(", re.IGNORECASE)", ""))
+                #logging.info("Start index: %s | End index: %s %s", match_start, match_end, "\n")
 
             # PHI context left and right
             phi_starts = []
