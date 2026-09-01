@@ -4,7 +4,6 @@ import pandas as pd
 import json
 from philter import Philter
 import glob
-import sys
 import os
 import tempfile
 
@@ -14,6 +13,57 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     filemode='w'
 )
+
+
+def realign_words(original, philtered, words):
+    """Re-apply Philter's masking to each word-level timestamp entry.
+
+    Philter's asterisk output is a character-for-character transform: every
+    character of the input is either preserved, kept as punctuation, or
+    replaced by a single "*", so `philtered` has exactly the same length as
+    `original`. That lets us locate each Whisper word in the original text and
+    slice the same span out of the philtered text -- exact, rather than trying
+    to pair up two token lists that split differently on whitespace and
+    hyphens.
+
+    Fails closed: any word we cannot place is fully masked rather than left
+    with its original (potentially PHI) text.
+    """
+    if len(original) != len(philtered):
+        # The length invariant this relies on is broken, so no span is
+        # trustworthy. Mask every word rather than emit unredacted PHI.
+        logging.error(
+            "Length invariant violated (original %d chars, philtered %d); "
+            "masking all %d words in this segment",
+            len(original), len(philtered), len(words),
+        )
+        for w in words:
+            if w.get("word"):
+                w["word"] = "*" * len(w["word"])
+        return words
+
+    cursor = 0
+    for w in words:
+        token = w.get("word")
+        if not token:
+            continue
+
+        idx = original.find(token, cursor)
+        if idx == -1:
+            # Whisper occasionally reports a word that is not a literal
+            # substring at/after the cursor (normalised punctuation, an
+            # overlapping span). Mask it outright.
+            logging.warning(
+                "Could not locate word %r at/after offset %d; masking it",
+                token, cursor,
+            )
+            w["word"] = "*" * len(token)
+            continue
+
+        w["word"] = philtered[idx:idx + len(token)]
+        cursor = idx + len(token)
+
+    return words
 
 def process_tsv(input, output):
     input_path = os.path.join(input)
@@ -32,7 +82,7 @@ def process_tsv(input, output):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for file_name, content in content_dict.items():
-                with open(os.path.join(temp_dir, file_name), 'w') as temp_file:
+                with open(os.path.join(temp_dir, file_name), 'w', encoding='utf-8') as temp_file:
                     temp_file.write(content)
 
             philter_config = {
@@ -49,8 +99,18 @@ def process_tsv(input, output):
 
             philter_lines = []
             for txt_file in file_names:
-                with open(os.path.join(temp_dir, txt_file), 'r') as temp_file:
+                # errors='surrogateescape' mirrors philter.py's own write: an
+                # undecodable input byte round-trips instead of raising here.
+                with open(os.path.join(temp_dir, txt_file), 'r', encoding='utf-8',
+                          errors='surrogateescape') as temp_file:
                     philter_lines.append(temp_file.read())
+
+            if len(philter_lines) != len(df.index):
+                raise RuntimeError(
+                    f"{f_name}: Philter returned {len(philter_lines)} lines for "
+                    f"{len(df.index)} rows; refusing to write partially "
+                    f"de-identified output"
+                )
 
             df["text"] = philter_lines
 
@@ -64,7 +124,7 @@ def process_json(input, output):
     files = glob.glob(os.path.join(input_path, '*.json'))
 
     for file in files:
-        with open(rf"{file}", 'r') as f:
+        with open(rf"{file}", 'r', encoding='utf-8') as f:
             data = json.load(f)
 
         f_name = os.path.basename(file).split('.json')[0]
@@ -77,7 +137,7 @@ def process_json(input, output):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for file_name, content in content_dict.items():
-                with open(os.path.join(temp_dir, file_name), 'w') as temp_file:
+                with open(os.path.join(temp_dir, file_name), 'w', encoding='utf-8') as temp_file:
                     temp_file.write(content)
 
             philter_config = {
@@ -94,24 +154,33 @@ def process_json(input, output):
 
             philter_lines = []
             for txt_file in file_names:
-                with open(os.path.join(temp_dir, txt_file), 'r') as temp_file:
+                # errors='surrogateescape' mirrors philter.py's own write: an
+                # undecodable input byte round-trips instead of raising here.
+                with open(os.path.join(temp_dir, txt_file), 'r', encoding='utf-8',
+                          errors='surrogateescape') as temp_file:
                     philter_lines.append(temp_file.read())
 
+            if len(philter_lines) != len(segments):
+                raise RuntimeError(
+                    f"{f_name}: Philter returned {len(philter_lines)} lines for "
+                    f"{len(segments)} segments; refusing to write partially "
+                    f"de-identified output"
+                )
+
             for i in range(len(segments)):
+                segments[i]["words"] = realign_words(
+                    lines[i], philter_lines[i], segments[i].get("words", [])
+                )
                 segments[i]["text"] = philter_lines[i]
-                for j in range(len(lines[i].split(" "))):
-                    try:
-                        segments[i]["words"][j]["word"] = philter_lines[i].split(" ")[j]
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        print(f"Length mismatch between {segments[i]['words']} and {philter_lines[i].split(" ")} in segment {i} of json file, start: {segments[i]['start']} end: {segments[i]['end']}")
-                        sys.exit(1)
 
             data["segments"] = segments
 
-        with open(os.path.join(output_path, f"{f_name}.json"), 'w') as json_file:
+        # ensure_ascii=True: philter.py reads/writes with errors='surrogateescape',
+        # so an undecodable input byte can survive as a lone surrogate, which
+        # cannot be encoded to strict utf-8. Escaping keeps the write atomic.
+        with open(os.path.join(output_path, f"{f_name}.json"), 'w', encoding='utf-8') as json_file:
             json.dump(data, json_file, indent=4)
-        
+
         print(f"The file {f_name}.json has been successfully processed and saved to the {output_path} directory.")
 
 if __name__ == "__main__":
