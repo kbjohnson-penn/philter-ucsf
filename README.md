@@ -57,6 +57,13 @@ timestamps stay consistent with the redacted transcript. See
 
 - All output files will be saved in the specified output directory, which will be created if it doesn't already exist.
 
+- De-identified JSON transcripts are written as `<stem>.philtered.json`, so
+  `visit01.transcript.json` becomes `visit01.transcript.philtered.json`. The
+  suffix keeps redacted output distinguishable from source transcripts at a
+  glance. Files already ending in `.philtered.json` are skipped as input, so
+  the same directory can safely be used for both `-i` and `-o`. (TSV output
+  keeps the input filename.)
+
 - Our current implementation uses the default configuration file. However, you can also create a configuration file with specified filters. We are currently working on identifying the best set of filters for our use case.
 
 - Run Philter in the command line by using our custom parameters.

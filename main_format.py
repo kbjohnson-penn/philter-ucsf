@@ -15,6 +15,9 @@ logging.basicConfig(
 )
 
 
+PHILTERED_SUFFIX = ".philtered.json"
+
+
 def realign_words(original, philtered, words):
     """Re-apply Philter's masking to each word-level timestamp entry.
 
@@ -73,7 +76,7 @@ def process_tsv(input, output):
     for file in files:
         df = pd.read_csv(rf"{file}", sep='\t')
 
-        f_name = os.path.basename(file).split('.tsv')[0]
+        f_name = os.path.splitext(os.path.basename(file))[0]
         os.makedirs(output_path, exist_ok=True)
 
         lines = [line for line in df["text"]]
@@ -121,13 +124,16 @@ def process_tsv(input, output):
 def process_json(input, output):
     input_path = os.path.join(input)
     output_path = os.path.join(output)
-    files = glob.glob(os.path.join(input_path, '*.json'))
+    # Skip our own output, so re-running with --input == --output does not
+    # produce <stem>.philtered.philtered.json.
+    files = [f for f in glob.glob(os.path.join(input_path, '*.json'))
+             if not f.endswith(PHILTERED_SUFFIX)]
 
     for file in files:
         with open(rf"{file}", 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        f_name = os.path.basename(file).split('.json')[0]
+        f_name = os.path.splitext(os.path.basename(file))[0]
         os.makedirs(output_path, exist_ok=True)
         segments = data["segments"]
 
@@ -178,10 +184,11 @@ def process_json(input, output):
         # ensure_ascii=True: philter.py reads/writes with errors='surrogateescape',
         # so an undecodable input byte can survive as a lone surrogate, which
         # cannot be encoded to strict utf-8. Escaping keeps the write atomic.
-        with open(os.path.join(output_path, f"{f_name}.json"), 'w', encoding='utf-8') as json_file:
+        out_name = f"{f_name}{PHILTERED_SUFFIX}"
+        with open(os.path.join(output_path, out_name), 'w', encoding='utf-8') as json_file:
             json.dump(data, json_file, indent=4)
 
-        print(f"The file {f_name}.json has been successfully processed and saved to the {output_path} directory.")
+        print(f"The file {out_name} has been successfully processed and saved to the {output_path} directory.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify input and output directories, process TSV or JSON files.")
