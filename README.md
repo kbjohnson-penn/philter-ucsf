@@ -46,6 +46,11 @@ Philter is a command-line based clinical text de-identification software that re
 }
 ```
 
+For JSON input, note that Philter rewrites **both** the segment-level `text`
+field and each entry in the segment's `words` list, so the word-level
+timestamps stay consistent with the redacted transcript. See
+[Word-level de-identification](#word-level-de-identification) for details.
+
 # Running kbjohnson-penn Philter:
 
 - Store all input file(s) in the same directory and make sure they are in TSV or JSON format. Examples of properly formatted input files can be found above.
@@ -72,6 +77,48 @@ python3 main_format.py -i path/to/input/folder -o path/to/output/folder -f tsv
 python3 main_format.py -i path/to/input/folder -o path/to/output/folder -f json
 ```
 
+# Word-level de-identification
+
+WhisperX JSON carries a `words` list per segment, each entry holding a token
+plus its own timestamps. Downstream consumers (for example, audio redaction)
+use those per-word timings to locate PHI in the audio, so the word entries must
+be redacted just as thoroughly as the segment `text`.
+
+Philter's asterisk output is a character-for-character transform: every
+character of the input is either preserved, kept as punctuation, or replaced
+with a single `*`. The redacted line is therefore always exactly the same
+length as the input line. `main_format.py` relies on that invariant, locating
+each word in the original line and slicing the same character span out of the
+redacted line. This is exact, and avoids trying to pair up two token lists that
+split differently on whitespace and hyphens (`Mm-hmm.`, `x-ray`) or where
+Philter's own edits change the token count.
+
+The alignment **fails closed**. If a word cannot be placed, or if the
+length invariant is ever violated, the affected words are fully masked rather
+than left with their original text. Every such case is recorded in
+`regex_filters.log`:
+
+```ini
+20XX-XX-XX XX:XX:XX,XXX - WARNING - Could not locate word 'Example' at/after offset 0; masking it
+```
+
+If Philter returns a different number of lines than the input had segments (or
+TSV rows), the run aborts with a `RuntimeError` rather than writing partially
+de-identified output.
+
+# A note on encodings
+
+Input files are read as UTF-8. Philter detects the encoding of each intermediate
+file before reading it; because statistical detection is unreliable on very
+short inputs (a single transcript line can be mis-detected as a legacy codepage
+and then fail to decode), valid UTF-8 is always detected as UTF-8, with
+`chardet` used only as a fallback.
+
+Undecodable bytes are preserved through the intermediate files using
+`surrogateescape` and are escaped in the JSON output. A source file that is
+itself not valid UTF-8 will fail loudly rather than be silently mangled --
+re-encode it to UTF-8 before processing.
+
 # kbjohnson-penn Regex Logging
 
 Upon running Philter with `main_format.py`, a log file `regex_filters.log` will be created. This log file details the potential PHI being filtered. It includes the location of each occurrence, the original text snippet, the matched word or phrase, the regex expression used, and the starting and stopping indices of where the PHI occurred. Here is an example of how this information is presented:
@@ -83,6 +130,18 @@ Upon running Philter with `main_format.py`, a log file `regex_filters.log` will 
 20XX-XX-XX XX:XX:XX,XXX - INFO - Expression: '(?i)\\bdo\\s(not|you|I)\\b'
 20XX-XX-XX XX:XX:XX,XXX - INFO - Start index: 0 | End index: 6
 ```
+
+**This log contains PHI in cleartext.** It records the matched snippets
+themselves, not just their offsets, and it is rewritten on every run
+(`filemode='w'`). Treat it with the same care as the input transcripts: it is
+covered by `.gitignore`, must not be committed, and should be removed once it
+is no longer needed for debugging.
+
+`.gitignore` also excludes `*.json`, `*.csv` and `*.tsv` by default so that
+transcripts and de-identified output are never committed by accident. The
+repository's own configuration, filter lists and sample data are re-included
+explicitly; if you add a new config or filter file outside those directories,
+add a matching `!` exception rather than removing the blanket rules.
 
 # Original Philter README
 

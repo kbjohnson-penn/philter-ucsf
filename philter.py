@@ -1,6 +1,7 @@
 import re
 import warnings
 import json
+import codecs
 import os
 import nltk
 import logging
@@ -809,7 +810,7 @@ class Philter:
                 continue  
 
             encoding = self.detect_encoding(filename)
-            txt = open(filename,"r", encoding=encoding['encoding']).read()
+            txt = open(filename,"r", encoding=encoding['encoding'], errors='surrogateescape').read()
 
 
 
@@ -899,14 +900,40 @@ class Philter:
         if not os.path.exists(fp):
             raise Exception("Filepath does not exist", fp)
 
+        # chardet is unreliable on short inputs (a single transcript line can be
+        # mis-detected as e.g. cp1254 and then fail to decode). Stream the file
+        # once through an incremental UTF-8 decoder and the detector together:
+        # if the bytes are valid UTF-8 we trust that, otherwise we fall back to
+        # chardet's statistical guess.
+        utf8_decoder = codecs.getincrementaldecoder("utf-8")()
+        is_utf8 = True
         detector = UniversalDetector()
+
         with open(fp, "rb") as f:
-            for line in f:
-                detector.feed(line)
-                if detector.done: 
+            for chunk in iter(lambda: f.read(65536), b""):
+                if is_utf8:
+                    try:
+                        utf8_decoder.decode(chunk)
+                    except UnicodeDecodeError:
+                        is_utf8 = False
+                if not detector.done:
+                    detector.feed(chunk)
+                if detector.done and not is_utf8:
                     break
-            detector.close()
-        return detector.result
+            if is_utf8:
+                try:
+                    utf8_decoder.decode(b"", final=True)
+                except UnicodeDecodeError:
+                    is_utf8 = False
+        detector.close()
+
+        if is_utf8:
+            return {"encoding": "utf-8", "confidence": 1.0, "language": ""}
+
+        result = detector.result
+        if not result.get("encoding"):
+            result = {"encoding": "utf-8", "confidence": 0.0, "language": ""}
+        return result
 
     def phi_context(self, filename, word, word_index, words, context_window=10):
         """ helper function, creates our phi data type with source file, and context window"""
