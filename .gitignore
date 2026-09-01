@@ -1,3 +1,29 @@
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# De-identification I/O -- transcripts and PHI-reduced output must never be
+# committed. Config, filter lists and the i2b2 sample data are re-included
+# below; anything else matching these patterns is treated as clinical data.
 *.json
 *.csv
+*.tsv
+
+!configs/**/*.json
+!filters/**/*.json
+!data/**/*.json
+!philter_ucsf/**/*.json
+
+# Logs -- regex_filters.log records matched PHI snippets in cleartext.
+*.log
+
+# Packaging artifacts -- regenerate with a build; do not commit.
+# (philter_ucsf/ is the PyPI package SOURCE and is intentionally tracked.)
+build/
+dist/
+*.egg-info/
