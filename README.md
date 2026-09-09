@@ -179,6 +179,23 @@ To install the Python requirements, run the following command:
 pip3 install -r requirements.txt
 ```
 
+Philter also needs NLTK corpora (a part-of-speech tagger and WordNet) that
+`pip` does not install. Download them once per environment:
+
+```bash
+python3 setup_nltk.py
+```
+
+Without this step, a run fails partway through with
+`LookupError: Resource averaged_perceptron_tagger_eng not found`. The resource
+was renamed in NLTK 3.8.2 (`averaged_perceptron_tagger` before, `..._eng`
+after); `setup_nltk.py` requests whichever name the installed version expects,
+so it works across versions.
+
+Note that the versions pinned in `requirements.txt` are older than what
+current environments typically resolve to. The pipeline is known to run on
+nltk 3.9.2, chardet 5.2.0, numpy 2.2.6 and pandas 2.3.3.
+
 # Running Philter: A Step-by-Step Guide
 
 Philter is a command-line based clinical text de-identification software that removes protected health information (PHI) from any plain text file. Although the software has built-in evaluation capabilities and can compare Philter PHI-reduced notes with a corresponding set of ground truth annotations, annotations are not required to run Philter. The following steps may be used to 1) run Philter in the command line without ground truth annotations, or 2) generate Philter-compatible annotations and run Philter in evaluation mode using ground truth annotations. Although any set of notes and corresponding annotations may be used with Philter, the examples provided here will correspond to the I2B2 dataset, which Philter uses in its default configuration. 
